@@ -128,6 +128,7 @@ impl<'a> VM<'a> {
 
     // SLOAD operation
     pub fn op_sload(&mut self) -> Result<OpcodeResult, VMError> {
+        let fork = self.env.config.fork;
         let (storage_slot_key, address) = {
             let current_call_frame = &mut self.current_call_frame;
             let storage_slot_key = current_call_frame.stack.pop1()?;
@@ -141,7 +142,7 @@ impl<'a> VM<'a> {
 
         let current_call_frame = &mut self.current_call_frame;
 
-        current_call_frame.increase_consumed_gas(gas_cost::sload(storage_slot_was_cold)?)?;
+        current_call_frame.increase_consumed_gas(gas_cost::sload(storage_slot_was_cold, fork)?)?;
 
         current_call_frame.stack.push(value)?;
         Ok(OpcodeResult::Continue)

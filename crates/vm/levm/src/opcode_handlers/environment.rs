@@ -27,6 +27,7 @@ impl<'a> VM<'a> {
 
     // BALANCE operation
     pub fn op_balance(&mut self) -> Result<OpcodeResult, VMError> {
+        let fork = self.env.config.fork;
         let address = word_to_address(self.current_call_frame.stack.pop1()?);
 
         let address_was_cold = !self.substate.add_accessed_address(address);
@@ -34,7 +35,7 @@ impl<'a> VM<'a> {
 
         let current_call_frame = &mut self.current_call_frame;
 
-        current_call_frame.increase_consumed_gas(gas_cost::balance(address_was_cold)?)?;
+        current_call_frame.increase_consumed_gas(gas_cost::balance(address_was_cold, fork)?)?;
 
         current_call_frame.stack.push(account_balance)?;
 
@@ -284,6 +285,7 @@ impl<'a> VM<'a> {
 
     // EXTCODESIZE operation
     pub fn op_extcodesize(&mut self) -> Result<OpcodeResult, VMError> {
+        let fork = self.env.config.fork;
         let address = word_to_address(self.current_call_frame.stack.pop1()?);
         let address_was_cold = !self.substate.add_accessed_address(address);
         // FIXME: a bit wasteful to fetch the whole code just to get the length.
@@ -291,7 +293,7 @@ impl<'a> VM<'a> {
 
         let current_call_frame = &mut self.current_call_frame;
 
-        current_call_frame.increase_consumed_gas(gas_cost::extcodesize(address_was_cold)?)?;
+        current_call_frame.increase_consumed_gas(gas_cost::extcodesize(address_was_cold, fork)?)?;
 
         current_call_frame.stack.push(account_code_length)?;
 
@@ -300,6 +302,7 @@ impl<'a> VM<'a> {
 
     // EXTCODECOPY operation
     pub fn op_extcodecopy(&mut self) -> Result<OpcodeResult, VMError> {
+        let fork = self.env.config.fork;
         let call_frame = &mut self.current_call_frame;
         let [address, dest_offset, offset, size] = *call_frame.stack.pop()?;
 
@@ -317,6 +320,7 @@ impl<'a> VM<'a> {
                 new_memory_size,
                 current_memory_size,
                 address_was_cold,
+                fork,
             )?)?;
 
         if size == 0 {
@@ -416,6 +420,7 @@ impl<'a> VM<'a> {
 
     // EXTCODEHASH operation
     pub fn op_extcodehash(&mut self) -> Result<OpcodeResult, VMError> {
+        let fork = self.env.config.fork;
         let address = word_to_address(self.current_call_frame.stack.pop1()?);
         let address_was_cold = !self.substate.add_accessed_address(address);
         let account = self.db.get_account(address)?;
@@ -423,7 +428,7 @@ impl<'a> VM<'a> {
         let account_code_hash = account.info.code_hash.0;
         let current_call_frame = &mut self.current_call_frame;
 
-        current_call_frame.increase_consumed_gas(gas_cost::extcodehash(address_was_cold)?)?;
+        current_call_frame.increase_consumed_gas(gas_cost::extcodehash(address_was_cold, fork)?)?;
 
         // An account is considered empty when it has no code and zero nonce and zero balance. [EIP-161]
         if account_is_empty {

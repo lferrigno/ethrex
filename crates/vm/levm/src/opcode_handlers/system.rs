@@ -86,6 +86,7 @@ impl<'a> VM<'a> {
             value,
             gas,
             gas_left,
+            self.env.config.fork,
         )?;
 
         let callframe = &mut self.current_call_frame;
@@ -183,6 +184,7 @@ impl<'a> VM<'a> {
             value,
             gas,
             gas_left,
+            self.env.config.fork,
         )?;
 
         let callframe = &mut self.current_call_frame;
@@ -299,6 +301,7 @@ impl<'a> VM<'a> {
             address_was_cold,
             gas,
             gas_left,
+            self.env.config.fork,
         )?;
 
         let callframe = &mut self.current_call_frame;
@@ -396,6 +399,7 @@ impl<'a> VM<'a> {
             address_was_cold,
             gas,
             gas_left,
+            self.env.config.fork,
         )?;
 
         let callframe = &mut self.current_call_frame;
