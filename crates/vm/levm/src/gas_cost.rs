@@ -24,6 +24,8 @@ pub const ADDMOD: u64 = 8;
 pub const MULMOD: u64 = 8;
 pub const EXP_STATIC: u64 = 10;
 pub const EXP_DYNAMIC_BASE: u64 = 50;
+// Pre-Spurious Dragon: EIP-160 changed the dynamic base from 10 to 50
+pub const EXP_DYNAMIC_BASE_PRE_SPURIOUS_DRAGON: u64 = 10;
 pub const SIGNEXTEND: u64 = 5;
 pub const LT: u64 = 3;
 pub const GT: u64 = 3;
@@ -101,6 +103,9 @@ pub const DEFAULT_WARM_DYNAMIC: u64 = 100;
 pub const SLOAD_STATIC: u64 = 0;
 pub const SLOAD_COLD_DYNAMIC: u64 = 2100;
 pub const SLOAD_WARM_DYNAMIC: u64 = 100;
+// Pre-Berlin: flat gas costs (no warm/cold distinction)
+pub const SLOAD_GAS_FRONTIER: u64 = 50;
+pub const SLOAD_GAS_TANGERINE: u64 = 200; // EIP-150
 
 pub const SSTORE_STATIC: u64 = 0;
 pub const SSTORE_COLD_DYNAMIC: u64 = 2100;
@@ -112,19 +117,32 @@ pub const SSTORE_STIPEND: i64 = 2300;
 pub const BALANCE_STATIC: u64 = DEFAULT_STATIC;
 pub const BALANCE_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const BALANCE_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas costs
+pub const BALANCE_GAS_FRONTIER: u64 = 20;
+pub const BALANCE_GAS_TANGERINE: u64 = 400; // EIP-150
+pub const BALANCE_GAS_ISTANBUL: u64 = 700; // EIP-1884
 
 pub const EXTCODESIZE_STATIC: u64 = DEFAULT_STATIC;
 pub const EXTCODESIZE_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const EXTCODESIZE_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas costs
+pub const EXTCODESIZE_GAS_FRONTIER: u64 = 20;
+pub const EXTCODESIZE_GAS_TANGERINE: u64 = 700; // EIP-150
 
 pub const EXTCODEHASH_STATIC: u64 = DEFAULT_STATIC;
 pub const EXTCODEHASH_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const EXTCODEHASH_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas cost (introduced in Constantinople)
+pub const EXTCODEHASH_GAS_CONSTANTINOPLE: u64 = 400;
+pub const EXTCODEHASH_GAS_ISTANBUL: u64 = 700; // EIP-1884
 
 pub const EXTCODECOPY_STATIC: u64 = 0;
 pub const EXTCODECOPY_DYNAMIC_BASE: u64 = 3;
 pub const EXTCODECOPY_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const EXTCODECOPY_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas costs (static part only, dynamic copy cost is separate)
+pub const EXTCODECOPY_GAS_FRONTIER: u64 = 20;
+pub const EXTCODECOPY_GAS_TANGERINE: u64 = 700; // EIP-150
 
 pub const CALL_STATIC: u64 = DEFAULT_STATIC;
 pub const CALL_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
@@ -132,20 +150,31 @@ pub const CALL_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
 pub const CALL_POSITIVE_VALUE: u64 = 9000;
 pub const CALL_POSITIVE_VALUE_STIPEND: u64 = 2300;
 pub const CALL_TO_EMPTY_ACCOUNT: u64 = 25000;
+// Pre-Berlin: flat gas costs
+pub const CALL_GAS_FRONTIER: u64 = 40;
+pub const CALL_GAS_TANGERINE: u64 = 700; // EIP-150
 
 pub const CALLCODE_STATIC: u64 = DEFAULT_STATIC;
 pub const CALLCODE_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const CALLCODE_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
 pub const CALLCODE_POSITIVE_VALUE: u64 = 9000;
 pub const CALLCODE_POSITIVE_VALUE_STIPEND: u64 = 2300;
+// Pre-Berlin: flat gas costs (same as CALL)
+pub const CALLCODE_GAS_FRONTIER: u64 = 40;
+pub const CALLCODE_GAS_TANGERINE: u64 = 700; // EIP-150
 
 pub const DELEGATECALL_STATIC: u64 = DEFAULT_STATIC;
 pub const DELEGATECALL_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const DELEGATECALL_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas costs (introduced in Homestead)
+pub const DELEGATECALL_GAS_HOMESTEAD: u64 = 40;
+pub const DELEGATECALL_GAS_TANGERINE: u64 = 700; // EIP-150
 
 pub const STATICCALL_STATIC: u64 = DEFAULT_STATIC;
 pub const STATICCALL_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
 pub const STATICCALL_WARM_DYNAMIC: u64 = DEFAULT_WARM_DYNAMIC;
+// Pre-Berlin: flat gas costs (introduced in Byzantium)
+pub const STATICCALL_GAS_BYZANTIUM: u64 = 700;
 
 // Costs in gas for call opcodes
 pub const WARM_ADDRESS_ACCESS_COST: u64 = 100;
@@ -233,14 +262,21 @@ pub const BLS12_381_G2_K_DISCOUNT: [u64; 128] = [
 ];
 pub const G2_MUL_COST: u64 = 22500;
 
-pub fn exp(exponent: U256) -> Result<u64, VMError> {
+pub fn exp(exponent: U256, fork: Fork) -> Result<u64, VMError> {
     let exponent_byte_size = (exponent.bits().checked_add(7).ok_or(OutOfGas)?) / 8;
 
     let exponent_byte_size: u64 = exponent_byte_size
         .try_into()
         .map_err(|_| ExceptionalHalt::VeryLargeNumber)?;
 
-    let exponent_byte_size_cost = EXP_DYNAMIC_BASE
+    // EIP-160 (Spurious Dragon) changed the dynamic base from 10 to 50
+    let dynamic_base = if fork >= Fork::SpuriousDragon {
+        EXP_DYNAMIC_BASE
+    } else {
+        EXP_DYNAMIC_BASE_PRE_SPURIOUS_DRAGON
+    };
+
+    let exponent_byte_size_cost = dynamic_base
         .checked_mul(exponent_byte_size)
         .ok_or(OutOfGas)?;
 
@@ -392,7 +428,18 @@ fn mem_expansion_behavior(
         .ok_or(OutOfGas.into())
 }
 
-pub fn sload(storage_slot_was_cold: bool) -> Result<u64, VMError> {
+pub fn sload(storage_slot_was_cold: bool, fork: Fork) -> Result<u64, VMError> {
+    // Pre-Berlin forks use flat gas costs (no warm/cold distinction)
+    if fork < Fork::Berlin {
+        let gas = if fork >= Fork::Tangerine {
+            SLOAD_GAS_TANGERINE // 200 gas (EIP-150)
+        } else {
+            SLOAD_GAS_FRONTIER // 50 gas
+        };
+        return Ok(gas);
+    }
+
+    // Berlin and later: EIP-2929 access list model
     let static_gas = SLOAD_STATIC;
     let dynamic_cost = if storage_slot_was_cold {
         SLOAD_COLD_DYNAMIC
@@ -589,7 +636,20 @@ fn address_access_cost(
     static_cost.checked_add(dynamic_cost).ok_or(OutOfGas.into())
 }
 
-pub fn balance(address_was_cold: bool) -> Result<u64, VMError> {
+pub fn balance(address_was_cold: bool, fork: Fork) -> Result<u64, VMError> {
+    // Pre-Berlin forks use flat gas costs (no warm/cold distinction)
+    if fork < Fork::Berlin {
+        let gas = if fork >= Fork::Istanbul {
+            BALANCE_GAS_ISTANBUL // 700 gas (EIP-1884)
+        } else if fork >= Fork::Tangerine {
+            BALANCE_GAS_TANGERINE // 400 gas (EIP-150)
+        } else {
+            BALANCE_GAS_FRONTIER // 20 gas
+        };
+        return Ok(gas);
+    }
+
+    // Berlin and later: EIP-2929 access list model
     address_access_cost(
         address_was_cold,
         BALANCE_STATIC,
@@ -598,7 +658,18 @@ pub fn balance(address_was_cold: bool) -> Result<u64, VMError> {
     )
 }
 
-pub fn extcodesize(address_was_cold: bool) -> Result<u64, VMError> {
+pub fn extcodesize(address_was_cold: bool, fork: Fork) -> Result<u64, VMError> {
+    // Pre-Berlin forks use flat gas costs (no warm/cold distinction)
+    if fork < Fork::Berlin {
+        let gas = if fork >= Fork::Tangerine {
+            EXTCODESIZE_GAS_TANGERINE // 700 gas (EIP-150)
+        } else {
+            EXTCODESIZE_GAS_FRONTIER // 20 gas
+        };
+        return Ok(gas);
+    }
+
+    // Berlin and later: EIP-2929 access list model
     address_access_cost(
         address_was_cold,
         EXTCODESIZE_STATIC,
@@ -612,14 +683,28 @@ pub fn extcodecopy(
     new_memory_size: usize,
     current_memory_size: usize,
     address_was_cold: bool,
+    fork: Fork,
 ) -> Result<u64, VMError> {
-    let base_access_cost = copy_behavior(
+    // Calculate copy cost (common for all forks)
+    let copy_cost = copy_behavior(
         new_memory_size,
         current_memory_size,
         size,
         EXTCODECOPY_DYNAMIC_BASE,
         EXTCODECOPY_STATIC,
     )?;
+
+    // Pre-Berlin forks use flat gas costs for address access (no warm/cold distinction)
+    if fork < Fork::Berlin {
+        let address_cost = if fork >= Fork::Tangerine {
+            EXTCODECOPY_GAS_TANGERINE // 700 gas (EIP-150)
+        } else {
+            EXTCODECOPY_GAS_FRONTIER // 20 gas
+        };
+        return copy_cost.checked_add(address_cost).ok_or(OutOfGas.into());
+    }
+
+    // Berlin and later: EIP-2929 access list model
     let expansion_access_cost = address_access_cost(
         address_was_cold,
         EXTCODECOPY_STATIC,
@@ -627,12 +712,24 @@ pub fn extcodecopy(
         EXTCODECOPY_WARM_DYNAMIC,
     )?;
 
-    base_access_cost
+    copy_cost
         .checked_add(expansion_access_cost)
         .ok_or(OutOfGas.into())
 }
 
-pub fn extcodehash(address_was_cold: bool) -> Result<u64, VMError> {
+pub fn extcodehash(address_was_cold: bool, fork: Fork) -> Result<u64, VMError> {
+    // EXTCODEHASH was introduced in Constantinople (EIP-1052)
+    // Pre-Berlin forks use flat gas costs (no warm/cold distinction)
+    if fork < Fork::Berlin {
+        let gas = if fork >= Fork::Istanbul {
+            EXTCODEHASH_GAS_ISTANBUL // 700 gas (EIP-1884)
+        } else {
+            EXTCODEHASH_GAS_CONSTANTINOPLE // 400 gas
+        };
+        return Ok(gas);
+    }
+
+    // Berlin and later: EIP-2929 access list model
     address_access_cost(
         address_was_cold,
         EXTCODEHASH_STATIC,
@@ -650,15 +747,27 @@ pub fn call(
     value_to_transfer: U256,
     gas_from_stack: U256,
     gas_left: u64,
+    fork: Fork,
 ) -> Result<(u64, u64), VMError> {
     let memory_expansion_cost = memory::expansion_cost(new_memory_size, current_memory_size)?;
 
-    let address_access_cost = address_access_cost(
-        address_was_cold,
-        CALL_STATIC,
-        CALL_COLD_DYNAMIC,
-        CALL_WARM_DYNAMIC,
-    )?;
+    // Pre-Berlin forks use flat gas costs for address access (no warm/cold distinction)
+    let address_cost = if fork < Fork::Berlin {
+        if fork >= Fork::Tangerine {
+            CALL_GAS_TANGERINE // 700 gas (EIP-150)
+        } else {
+            CALL_GAS_FRONTIER // 40 gas
+        }
+    } else {
+        // Berlin and later: EIP-2929 access list model
+        address_access_cost(
+            address_was_cold,
+            CALL_STATIC,
+            CALL_COLD_DYNAMIC,
+            CALL_WARM_DYNAMIC,
+        )?
+    };
+
     let positive_value_cost = if !value_to_transfer.is_zero() {
         CALL_POSITIVE_VALUE
     } else {
@@ -672,7 +781,7 @@ pub fn call(
     };
 
     let call_gas_costs = memory_expansion_cost
-        .checked_add(address_access_cost)
+        .checked_add(address_cost)
         .ok_or(OutOfGas)?
         .checked_add(positive_value_cost)
         .ok_or(OutOfGas)?
@@ -685,6 +794,7 @@ pub fn call(
         gas_left,
         call_gas_costs,
         CALL_POSITIVE_VALUE_STIPEND,
+        fork,
     )
 }
 
@@ -695,14 +805,26 @@ pub fn callcode(
     value_to_transfer: U256,
     gas_from_stack: U256,
     gas_left: u64,
+    fork: Fork,
 ) -> Result<(u64, u64), VMError> {
     let memory_expansion_cost = memory::expansion_cost(new_memory_size, current_memory_size)?;
-    let address_access_cost = address_access_cost(
-        address_was_cold,
-        DELEGATECALL_STATIC,
-        DELEGATECALL_COLD_DYNAMIC,
-        DELEGATECALL_WARM_DYNAMIC,
-    )?;
+
+    // Pre-Berlin forks use flat gas costs for address access (no warm/cold distinction)
+    let address_cost = if fork < Fork::Berlin {
+        if fork >= Fork::Tangerine {
+            CALLCODE_GAS_TANGERINE // 700 gas (EIP-150)
+        } else {
+            CALLCODE_GAS_FRONTIER // 40 gas
+        }
+    } else {
+        // Berlin and later: EIP-2929 access list model
+        address_access_cost(
+            address_was_cold,
+            DELEGATECALL_STATIC,
+            DELEGATECALL_COLD_DYNAMIC,
+            DELEGATECALL_WARM_DYNAMIC,
+        )?
+    };
 
     let positive_value_cost = if !value_to_transfer.is_zero() {
         CALLCODE_POSITIVE_VALUE
@@ -710,7 +832,7 @@ pub fn callcode(
         0
     };
     let call_gas_costs = memory_expansion_cost
-        .checked_add(address_access_cost)
+        .checked_add(address_cost)
         .ok_or(OutOfGas)?
         .checked_add(positive_value_cost)
         .ok_or(OutOfGas)?;
@@ -721,6 +843,7 @@ pub fn callcode(
         gas_left,
         call_gas_costs,
         CALLCODE_POSITIVE_VALUE_STIPEND,
+        fork,
     )
 }
 
@@ -730,21 +853,33 @@ pub fn delegatecall(
     address_was_cold: bool,
     gas_from_stack: U256,
     gas_left: u64,
+    fork: Fork,
 ) -> Result<(u64, u64), VMError> {
     let memory_expansion_cost = memory::expansion_cost(new_memory_size, current_memory_size)?;
 
-    let address_access_cost = address_access_cost(
-        address_was_cold,
-        DELEGATECALL_STATIC,
-        DELEGATECALL_COLD_DYNAMIC,
-        DELEGATECALL_WARM_DYNAMIC,
-    )?;
+    // DELEGATECALL was introduced in Homestead
+    // Pre-Berlin forks use flat gas costs for address access (no warm/cold distinction)
+    let address_cost = if fork < Fork::Berlin {
+        if fork >= Fork::Tangerine {
+            DELEGATECALL_GAS_TANGERINE // 700 gas (EIP-150)
+        } else {
+            DELEGATECALL_GAS_HOMESTEAD // 40 gas
+        }
+    } else {
+        // Berlin and later: EIP-2929 access list model
+        address_access_cost(
+            address_was_cold,
+            DELEGATECALL_STATIC,
+            DELEGATECALL_COLD_DYNAMIC,
+            DELEGATECALL_WARM_DYNAMIC,
+        )?
+    };
 
     let call_gas_costs = memory_expansion_cost
-        .checked_add(address_access_cost)
+        .checked_add(address_cost)
         .ok_or(OutOfGas)?;
 
-    calculate_cost_and_gas_limit_call(true, gas_from_stack, gas_left, call_gas_costs, 0)
+    calculate_cost_and_gas_limit_call(true, gas_from_stack, gas_left, call_gas_costs, 0, fork)
 }
 
 pub fn staticcall(
@@ -753,21 +888,29 @@ pub fn staticcall(
     address_was_cold: bool,
     gas_from_stack: U256,
     gas_left: u64,
+    fork: Fork,
 ) -> Result<(u64, u64), VMError> {
     let memory_expansion_cost = memory::expansion_cost(new_memory_size, current_memory_size)?;
 
-    let address_access_cost = address_access_cost(
-        address_was_cold,
-        STATICCALL_STATIC,
-        STATICCALL_COLD_DYNAMIC,
-        STATICCALL_WARM_DYNAMIC,
-    )?;
+    // STATICCALL was introduced in Byzantium
+    // Pre-Berlin forks use flat gas costs for address access (no warm/cold distinction)
+    let address_cost = if fork < Fork::Berlin {
+        STATICCALL_GAS_BYZANTIUM // 700 gas (same as Tangerine for other calls)
+    } else {
+        // Berlin and later: EIP-2929 access list model
+        address_access_cost(
+            address_was_cold,
+            STATICCALL_STATIC,
+            STATICCALL_COLD_DYNAMIC,
+            STATICCALL_WARM_DYNAMIC,
+        )?
+    };
 
     let call_gas_costs = memory_expansion_cost
-        .checked_add(address_access_cost)
+        .checked_add(address_cost)
         .ok_or(OutOfGas)?;
 
-    calculate_cost_and_gas_limit_call(true, gas_from_stack, gas_left, call_gas_costs, 0)
+    calculate_cost_and_gas_limit_call(true, gas_from_stack, gas_left, call_gas_costs, 0, fork)
 }
 
 pub fn sha2_256(data_size: usize) -> Result<u64, VMError> {
@@ -912,17 +1055,27 @@ fn calculate_cost_and_gas_limit_call(
     gas_left: u64,
     call_gas_costs: u64,
     stipend: u64,
+    fork: Fork,
 ) -> Result<(u64, u64), VMError> {
     let gas_stipend = if value_is_zero { 0 } else { stipend };
     let gas_left = gas_left.checked_sub(call_gas_costs).ok_or(OutOfGas)?;
 
-    // EIP 150, https://eips.ethereum.org/EIPS/eip-150
-    let max_gas_for_call = gas_left.checked_sub(gas_left / 64).ok_or(OutOfGas)?;
-
-    let gas: u64 = gas_from_stack
-        .min(max_gas_for_call.into())
-        .try_into()
-        .map_err(|_err| ExceptionalHalt::OutOfGas)?;
+    // Calculate gas to pass to subcall
+    let gas: u64 = if fork >= Fork::Tangerine {
+        // EIP-150: Max message call gas is all but one 64th of the remaining gas
+        // https://eips.ethereum.org/EIPS/eip-150
+        let max_gas_for_call = gas_left.checked_sub(gas_left / 64).ok_or(OutOfGas)?;
+        gas_from_stack
+            .min(max_gas_for_call.into())
+            .try_into()
+            .map_err(|_err| ExceptionalHalt::OutOfGas)?
+    } else {
+        // Pre-Tangerine: gas passed is simply the gas_from_stack value (capped by gas_left)
+        gas_from_stack
+            .min(gas_left.into())
+            .try_into()
+            .map_err(|_err| ExceptionalHalt::OutOfGas)?
+    };
 
     Ok((
         gas.checked_add(call_gas_costs)
