@@ -113,6 +113,11 @@ pub const SSTORE_DEFAULT_DYNAMIC: u64 = 100;
 pub const SSTORE_STORAGE_CREATION: u64 = 20000;
 pub const SSTORE_STORAGE_MODIFICATION: u64 = 2900;
 pub const SSTORE_STIPEND: i64 = 2300;
+// Pre-Istanbul SSTORE gas costs (simple model)
+pub const SSTORE_GAS_SET: u64 = 20000; // Changing from zero to non-zero
+pub const SSTORE_GAS_RESET: u64 = 5000; // Changing from non-zero or zero to something else
+// Pre-Istanbul SSTORE refund
+pub const SSTORE_REFUND_CLEAR: u64 = 15000; // Refund for clearing a slot (set to zero)
 
 pub const BALANCE_STATIC: u64 = DEFAULT_STATIC;
 pub const BALANCE_COLD_DYNAMIC: u64 = DEFAULT_COLD_DYNAMIC;
@@ -454,7 +459,21 @@ pub fn sstore(
     current_value: U256,
     new_value: U256,
     storage_slot_was_cold: bool,
+    fork: Fork,
 ) -> Result<u64, VMError> {
+    // Pre-Istanbul: Simple gas model (no net gas metering)
+    // 20000 gas for changing from zero to non-zero
+    // 5000 gas for all other changes
+    if fork < Fork::Istanbul {
+        let gas = if current_value.is_zero() && !new_value.is_zero() {
+            SSTORE_GAS_SET // 20000: zero -> non-zero
+        } else {
+            SSTORE_GAS_RESET // 5000: any other change
+        };
+        return Ok(gas);
+    }
+
+    // Istanbul and later: EIP-2200 net gas metering
     let static_gas = SSTORE_STATIC;
 
     let mut base_dynamic_gas = if new_value == current_value {
@@ -468,12 +487,14 @@ pub fn sstore(
     } else {
         SSTORE_DEFAULT_DYNAMIC
     };
-    // https://eips.ethereum.org/EIPS/eip-2929
-    if storage_slot_was_cold {
+
+    // Berlin and later: EIP-2929 cold/warm access costs
+    if fork >= Fork::Berlin && storage_slot_was_cold {
         base_dynamic_gas = base_dynamic_gas
             .checked_add(SSTORE_COLD_DYNAMIC)
             .ok_or(OutOfGas)?;
     }
+
     static_gas
         .checked_add(base_dynamic_gas)
         .ok_or(OutOfGas.into())
