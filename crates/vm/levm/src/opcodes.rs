@@ -380,15 +380,27 @@ impl<'a> VM<'a> {
             Self::build_opcode_table_pre_osaka()
         } else if fork >= Fork::Shanghai {
             Self::build_opcode_table_pre_cancun()
-        } else {
+        } else if fork >= Fork::London {
             Self::build_opcode_table_pre_shanghai()
+        } else if fork >= Fork::Istanbul {
+            Self::build_opcode_table_pre_london()
+        } else if fork >= Fork::Constantinople {
+            Self::build_opcode_table_pre_istanbul()
+        } else if fork >= Fork::Byzantium {
+            Self::build_opcode_table_pre_constantinople()
+        } else if fork >= Fork::Homestead {
+            Self::build_opcode_table_pre_byzantium()
+        } else {
+            Self::build_opcode_table_frontier()
         }
     }
 
+    /// Frontier opcode table - the original EVM opcodes
     #[allow(clippy::as_conversions, clippy::indexing_slicing)]
-    const fn build_opcode_table_pre_shanghai() -> [OpCodeFn<'a>; 256] {
+    const fn build_opcode_table_frontier() -> [OpCodeFn<'a>; 256] {
         let mut opcode_table: [OpCodeFn<'a>; 256] = [OpCodeFn(VM::on_invalid_opcode); 256];
 
+        // Basic opcodes available since Frontier
         opcode_table[Opcode::STOP as usize] = OpCodeFn(VM::op_stop);
         opcode_table[Opcode::MLOAD as usize] = OpCodeFn(VM::op_mload);
         opcode_table[Opcode::MSTORE as usize] = OpCodeFn(VM::op_mstore);
@@ -405,7 +417,6 @@ impl<'a> VM<'a> {
         opcode_table[Opcode::PUSH5 as usize] = OpCodeFn(VM::op_push::<5>);
         opcode_table[Opcode::PUSH6 as usize] = OpCodeFn(VM::op_push::<6>);
         opcode_table[Opcode::PUSH7 as usize] = OpCodeFn(VM::op_push::<7>);
-        opcode_table[Opcode::PUSH8 as usize] = OpCodeFn(VM::op_push::<8>);
         opcode_table[Opcode::PUSH8 as usize] = OpCodeFn(VM::op_push::<8>);
         opcode_table[Opcode::PUSH9 as usize] = OpCodeFn(VM::op_push::<9>);
         opcode_table[Opcode::PUSH10 as usize] = OpCodeFn(VM::op_push::<10>);
@@ -479,10 +490,7 @@ impl<'a> VM<'a> {
         opcode_table[Opcode::CALL as usize] = OpCodeFn(VM::op_call);
         opcode_table[Opcode::CALLCODE as usize] = OpCodeFn(VM::op_callcode);
         opcode_table[Opcode::RETURN as usize] = OpCodeFn(VM::op_return);
-        opcode_table[Opcode::DELEGATECALL as usize] = OpCodeFn(VM::op_delegatecall);
-        opcode_table[Opcode::STATICCALL as usize] = OpCodeFn(VM::op_staticcall);
         opcode_table[Opcode::CREATE as usize] = OpCodeFn(VM::op_create);
-        opcode_table[Opcode::CREATE2 as usize] = OpCodeFn(VM::op_create2);
         opcode_table[Opcode::JUMPI as usize] = OpCodeFn(VM::op_jumpi);
         opcode_table[Opcode::JUMPDEST as usize] = OpCodeFn(VM::op_jumpdest);
         opcode_table[Opcode::ADDRESS as usize] = OpCodeFn(VM::op_address);
@@ -502,32 +510,23 @@ impl<'a> VM<'a> {
         opcode_table[Opcode::CALLDATALOAD as usize] = OpCodeFn(VM::op_calldataload);
         opcode_table[Opcode::CALLDATASIZE as usize] = OpCodeFn(VM::op_calldatasize);
         opcode_table[Opcode::CALLDATACOPY as usize] = OpCodeFn(VM::op_calldatacopy);
-        opcode_table[Opcode::RETURNDATASIZE as usize] = OpCodeFn(VM::op_returndatasize);
-        opcode_table[Opcode::RETURNDATACOPY as usize] = OpCodeFn(VM::op_returndatacopy);
         opcode_table[Opcode::PC as usize] = OpCodeFn(VM::op_pc);
         opcode_table[Opcode::BLOCKHASH as usize] = OpCodeFn(VM::op_blockhash);
         opcode_table[Opcode::COINBASE as usize] = OpCodeFn(VM::op_coinbase);
         opcode_table[Opcode::TIMESTAMP as usize] = OpCodeFn(VM::op_timestamp);
         opcode_table[Opcode::NUMBER as usize] = OpCodeFn(VM::op_number);
+        // PREVRANDAO was called DIFFICULTY before Paris
         opcode_table[Opcode::PREVRANDAO as usize] = OpCodeFn(VM::op_prevrandao);
         opcode_table[Opcode::GASLIMIT as usize] = OpCodeFn(VM::op_gaslimit);
-        opcode_table[Opcode::CHAINID as usize] = OpCodeFn(VM::op_chainid);
-        opcode_table[Opcode::BASEFEE as usize] = OpCodeFn(VM::op_basefee);
         opcode_table[Opcode::AND as usize] = OpCodeFn(VM::op_and);
         opcode_table[Opcode::OR as usize] = OpCodeFn(VM::op_or);
         opcode_table[Opcode::XOR as usize] = OpCodeFn(VM::op_xor);
         opcode_table[Opcode::NOT as usize] = OpCodeFn(VM::op_not);
         opcode_table[Opcode::BYTE as usize] = OpCodeFn(VM::op_byte);
-        opcode_table[Opcode::SHL as usize] = OpCodeFn(VM::op_shl);
-        opcode_table[Opcode::SHR as usize] = OpCodeFn(VM::op_shr);
-        opcode_table[Opcode::SAR as usize] = OpCodeFn(VM::op_sar);
-        opcode_table[Opcode::SELFBALANCE as usize] = OpCodeFn(VM::op_selfbalance);
         opcode_table[Opcode::CODESIZE as usize] = OpCodeFn(VM::op_codesize);
         opcode_table[Opcode::GASPRICE as usize] = OpCodeFn(VM::op_gasprice);
         opcode_table[Opcode::EXTCODESIZE as usize] = OpCodeFn(VM::op_extcodesize);
         opcode_table[Opcode::EXTCODECOPY as usize] = OpCodeFn(VM::op_extcodecopy);
-        opcode_table[Opcode::EXTCODEHASH as usize] = OpCodeFn(VM::op_extcodehash);
-        opcode_table[Opcode::REVERT as usize] = OpCodeFn(VM::op_revert);
         opcode_table[Opcode::INVALID as usize] = OpCodeFn(VM::op_invalid);
         opcode_table[Opcode::SELFDESTRUCT as usize] = OpCodeFn(VM::op_selfdestruct);
 
@@ -536,6 +535,74 @@ impl<'a> VM<'a> {
         opcode_table[Opcode::LOG2 as usize] = OpCodeFn(VM::op_log::<2>);
         opcode_table[Opcode::LOG3 as usize] = OpCodeFn(VM::op_log::<3>);
         opcode_table[Opcode::LOG4 as usize] = OpCodeFn(VM::op_log::<4>);
+
+        opcode_table
+    }
+
+    /// Homestead opcode table - adds DELEGATECALL (EIP-7)
+    #[allow(clippy::as_conversions, clippy::indexing_slicing)]
+    const fn build_opcode_table_pre_byzantium() -> [OpCodeFn<'a>; 256] {
+        let mut opcode_table: [OpCodeFn<'a>; 256] = Self::build_opcode_table_frontier();
+
+        // [EIP-7] - DELEGATECALL added in Homestead
+        opcode_table[Opcode::DELEGATECALL as usize] = OpCodeFn(VM::op_delegatecall);
+
+        opcode_table
+    }
+
+    /// Byzantium opcode table - adds STATICCALL, RETURNDATASIZE, RETURNDATACOPY, REVERT (EIP-140, EIP-211)
+    #[allow(clippy::as_conversions, clippy::indexing_slicing)]
+    const fn build_opcode_table_pre_constantinople() -> [OpCodeFn<'a>; 256] {
+        let mut opcode_table: [OpCodeFn<'a>; 256] = Self::build_opcode_table_pre_byzantium();
+
+        // [EIP-140] - REVERT added in Byzantium
+        opcode_table[Opcode::REVERT as usize] = OpCodeFn(VM::op_revert);
+        // [EIP-211] - RETURNDATASIZE and RETURNDATACOPY added in Byzantium
+        opcode_table[Opcode::RETURNDATASIZE as usize] = OpCodeFn(VM::op_returndatasize);
+        opcode_table[Opcode::RETURNDATACOPY as usize] = OpCodeFn(VM::op_returndatacopy);
+        // [EIP-214] - STATICCALL added in Byzantium
+        opcode_table[Opcode::STATICCALL as usize] = OpCodeFn(VM::op_staticcall);
+
+        opcode_table
+    }
+
+    /// Constantinople opcode table - adds CREATE2, SHL, SHR, SAR, EXTCODEHASH (EIP-145, EIP-1014, EIP-1052)
+    #[allow(clippy::as_conversions, clippy::indexing_slicing)]
+    const fn build_opcode_table_pre_istanbul() -> [OpCodeFn<'a>; 256] {
+        let mut opcode_table: [OpCodeFn<'a>; 256] = Self::build_opcode_table_pre_constantinople();
+
+        // [EIP-145] - SHL, SHR, SAR added in Constantinople
+        opcode_table[Opcode::SHL as usize] = OpCodeFn(VM::op_shl);
+        opcode_table[Opcode::SHR as usize] = OpCodeFn(VM::op_shr);
+        opcode_table[Opcode::SAR as usize] = OpCodeFn(VM::op_sar);
+        // [EIP-1014] - CREATE2 added in Constantinople
+        opcode_table[Opcode::CREATE2 as usize] = OpCodeFn(VM::op_create2);
+        // [EIP-1052] - EXTCODEHASH added in Constantinople
+        opcode_table[Opcode::EXTCODEHASH as usize] = OpCodeFn(VM::op_extcodehash);
+
+        opcode_table
+    }
+
+    /// Istanbul opcode table - adds CHAINID, SELFBALANCE (EIP-1344, EIP-1884)
+    #[allow(clippy::as_conversions, clippy::indexing_slicing)]
+    const fn build_opcode_table_pre_london() -> [OpCodeFn<'a>; 256] {
+        let mut opcode_table: [OpCodeFn<'a>; 256] = Self::build_opcode_table_pre_istanbul();
+
+        // [EIP-1344] - CHAINID added in Istanbul
+        opcode_table[Opcode::CHAINID as usize] = OpCodeFn(VM::op_chainid);
+        // [EIP-1884] - SELFBALANCE added in Istanbul
+        opcode_table[Opcode::SELFBALANCE as usize] = OpCodeFn(VM::op_selfbalance);
+
+        opcode_table
+    }
+
+    /// London opcode table - adds BASEFEE (EIP-3198)
+    #[allow(clippy::as_conversions, clippy::indexing_slicing)]
+    const fn build_opcode_table_pre_shanghai() -> [OpCodeFn<'a>; 256] {
+        let mut opcode_table: [OpCodeFn<'a>; 256] = Self::build_opcode_table_pre_london();
+
+        // [EIP-3198] - BASEFEE added in London
+        opcode_table[Opcode::BASEFEE as usize] = OpCodeFn(VM::op_basefee);
 
         opcode_table
     }
