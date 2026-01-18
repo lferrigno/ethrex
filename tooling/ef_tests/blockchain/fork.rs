@@ -5,6 +5,101 @@ use std::str::FromStr;
 
 // Chain config for different forks as defined on https://ethereum.github.io/execution-spec-tests/v3.0.0/consuming_tests/common_types/#fork
 lazy_static! {
+    // Pre-merge fork configurations (block number based activation)
+    pub static ref FRONTIER_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        ..Default::default()
+    };
+
+    pub static ref HOMESTEAD_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref TANGERINE_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref SPURIOUS_DRAGON_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref BYZANTIUM_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref CONSTANTINOPLE_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        constantinople_block: Some(0),
+        petersburg_block: Some(0), // Petersburg is typically co-activated with Constantinople
+        ..Default::default()
+    };
+
+    pub static ref ISTANBUL_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        constantinople_block: Some(0),
+        petersburg_block: Some(0),
+        istanbul_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref BERLIN_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        constantinople_block: Some(0),
+        petersburg_block: Some(0),
+        istanbul_block: Some(0),
+        muir_glacier_block: Some(0),
+        berlin_block: Some(0),
+        ..Default::default()
+    };
+
+    pub static ref LONDON_CONFIG: ChainConfig = ChainConfig {
+        chain_id: 1_u64,
+        homestead_block: Some(0),
+        eip150_block: Some(0),
+        eip155_block: Some(0),
+        eip158_block: Some(0),
+        byzantium_block: Some(0),
+        constantinople_block: Some(0),
+        petersburg_block: Some(0),
+        istanbul_block: Some(0),
+        muir_glacier_block: Some(0),
+        berlin_block: Some(0),
+        london_block: Some(0),
+        ..Default::default()
+    };
+
+    // Post-merge fork configurations (timestamp based activation)
     pub static ref MERGE_CONFIG: ChainConfig = ChainConfig {
         chain_id: 1_u64,
         homestead_block: Some(0),
@@ -136,6 +231,19 @@ pub enum Fork {
 impl Fork {
     pub fn chain_config(&self) -> &ChainConfig {
         match self {
+            // Pre-merge forks
+            Fork::Frontier | Fork::FrontierToHomesteadAt5 => &FRONTIER_CONFIG,
+            Fork::Homestead | Fork::HomesteadToDaoAt5 | Fork::HomesteadToEIP150At5 => {
+                &HOMESTEAD_CONFIG
+            }
+            Fork::EIP150 => &TANGERINE_CONFIG,
+            Fork::EIP158 | Fork::EIP158ToByzantiumAt5 => &SPURIOUS_DRAGON_CONFIG,
+            Fork::Byzantium | Fork::ByzantiumToConstantinopleFixAt5 => &BYZANTIUM_CONFIG,
+            Fork::Constantinople | Fork::ConstantinopleFix => &CONSTANTINOPLE_CONFIG,
+            Fork::Istanbul => &ISTANBUL_CONFIG,
+            Fork::Berlin | Fork::BerlinToLondonAt5 => &BERLIN_CONFIG,
+            Fork::London | Fork::ArrowGlacierToParisAtDiffC0000 => &LONDON_CONFIG,
+            // Post-merge forks
             Fork::Merge => &MERGE_CONFIG,
             Fork::MergeToShanghaiAtTime15k => &MERGE_TO_SHANGHAI_AT_15K_CONFIG,
             Fork::Shanghai => &SHANGHAI_CONFIG,
@@ -150,9 +258,6 @@ impl Fork {
             Fork::BPO2ToBPO3AtTime15k => &BPO2_TO_BPO3_AT_15K_CONFIG,
             Fork::BPO3ToBPO4AtTime15k => &BPO3_TO_BPO4_AT_15K_CONFIG,
             Fork::BPO4ToBPO5AtTime15k => &BPO4_TO_BPO5_AT_15K_CONFIG,
-            _ => {
-                panic!("Ethrex doesn't support pre-Merge forks: {self:?}")
-            }
         }
     }
 }
