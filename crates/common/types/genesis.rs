@@ -343,6 +343,7 @@ impl From<Fork> for &str {
 }
 
 impl ChainConfig {
+    // Post-merge fork activation checks (timestamp-based)
     pub fn is_bpo1_activated(&self, block_timestamp: u64) -> bool {
         self.bpo1_time.is_some_and(|time| time <= block_timestamp)
     }
@@ -380,12 +381,64 @@ impl ChainConfig {
         self.cancun_time.is_some_and(|time| time <= block_timestamp)
     }
 
+    // Pre-merge fork activation checks (block number-based)
+    pub fn is_homestead_activated(&self, block_number: BlockNumber) -> bool {
+        self.homestead_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_dao_fork_activated(&self, block_number: BlockNumber) -> bool {
+        self.dao_fork_support && self.dao_fork_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_tangerine_activated(&self, block_number: BlockNumber) -> bool {
+        self.eip150_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_spurious_dragon_activated(&self, block_number: BlockNumber) -> bool {
+        // EIP-155 and EIP-158 are both part of Spurious Dragon
+        self.eip155_block.is_some_and(|num| num <= block_number)
+            || self.eip158_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_byzantium_activated(&self, block_number: BlockNumber) -> bool {
+        self.byzantium_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_constantinople_activated(&self, block_number: BlockNumber) -> bool {
+        self.constantinople_block
+            .is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_petersburg_activated(&self, block_number: BlockNumber) -> bool {
+        self.petersburg_block.is_some_and(|num| num <= block_number)
+    }
+
     pub fn is_istanbul_activated(&self, block_number: BlockNumber) -> bool {
         self.istanbul_block.is_some_and(|num| num <= block_number)
     }
 
+    pub fn is_muir_glacier_activated(&self, block_number: BlockNumber) -> bool {
+        self.muir_glacier_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_berlin_activated(&self, block_number: BlockNumber) -> bool {
+        self.berlin_block.is_some_and(|num| num <= block_number)
+    }
+
     pub fn is_london_activated(&self, block_number: BlockNumber) -> bool {
         self.london_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_arrow_glacier_activated(&self, block_number: BlockNumber) -> bool {
+        self.arrow_glacier_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_gray_glacier_activated(&self, block_number: BlockNumber) -> bool {
+        self.gray_glacier_block.is_some_and(|num| num <= block_number)
+    }
+
+    pub fn is_paris_activated(&self, block_number: BlockNumber) -> bool {
+        self.merge_netsplit_block.is_some_and(|num| num <= block_number)
     }
 
     pub fn is_eip155_activated(&self, block_number: BlockNumber) -> bool {
@@ -442,6 +495,89 @@ impl ChainConfig {
         } else {
             Fork::Paris
         }
+    }
+
+    /// Determines the active fork for a given block, considering both block number
+    /// (for pre-merge forks) and timestamp (for post-merge forks).
+    ///
+    /// Pre-merge forks (Frontier through GrayGlacier) are activated by block number.
+    /// Post-merge forks (Paris through BPO5) are activated by timestamp.
+    pub fn get_fork_for_block(&self, block_number: BlockNumber, block_timestamp: u64) -> Fork {
+        // First check post-merge (timestamp-based) forks
+        if self.is_bpo5_activated(block_timestamp) {
+            return Fork::BPO5;
+        }
+        if self.is_bpo4_activated(block_timestamp) {
+            return Fork::BPO4;
+        }
+        if self.is_bpo3_activated(block_timestamp) {
+            return Fork::BPO3;
+        }
+        if self.is_bpo2_activated(block_timestamp) {
+            return Fork::BPO2;
+        }
+        if self.is_bpo1_activated(block_timestamp) {
+            return Fork::BPO1;
+        }
+        if self.is_osaka_activated(block_timestamp) {
+            return Fork::Osaka;
+        }
+        if self.is_prague_activated(block_timestamp) {
+            return Fork::Prague;
+        }
+        if self.is_cancun_activated(block_timestamp) {
+            return Fork::Cancun;
+        }
+        if self.is_shanghai_activated(block_timestamp) {
+            return Fork::Shanghai;
+        }
+
+        // Check pre-merge (block number-based) forks, from newest to oldest
+        if self.is_paris_activated(block_number) {
+            return Fork::Paris;
+        }
+        if self.is_gray_glacier_activated(block_number) {
+            return Fork::GrayGlacier;
+        }
+        if self.is_arrow_glacier_activated(block_number) {
+            return Fork::ArrowGlacier;
+        }
+        if self.is_london_activated(block_number) {
+            return Fork::London;
+        }
+        if self.is_berlin_activated(block_number) {
+            return Fork::Berlin;
+        }
+        if self.is_muir_glacier_activated(block_number) {
+            return Fork::MuirGlacier;
+        }
+        if self.is_istanbul_activated(block_number) {
+            return Fork::Istanbul;
+        }
+        if self.is_petersburg_activated(block_number) {
+            return Fork::Petersburg;
+        }
+        if self.is_constantinople_activated(block_number) {
+            return Fork::Constantinople;
+        }
+        if self.is_byzantium_activated(block_number) {
+            return Fork::Byzantium;
+        }
+        if self.is_spurious_dragon_activated(block_number) {
+            return Fork::SpuriousDragon;
+        }
+        if self.is_tangerine_activated(block_number) {
+            return Fork::Tangerine;
+        }
+        if self.is_dao_fork_activated(block_number) {
+            return Fork::DaoFork;
+        }
+        if self.is_homestead_activated(block_number) {
+            return Fork::Homestead;
+        }
+
+        // Default to Frontier (the first fork)
+        Fork::Frontier
     }
 
     pub fn get_fork_blob_schedule(&self, block_timestamp: u64) -> Option<ForkBlobSchedule> {

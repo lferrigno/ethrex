@@ -92,13 +92,14 @@ pub struct Precompile {
     pub active_since_fork: Fork,
 }
 
+// Precompiles available since Frontier (genesis)
 pub const ECRECOVER: Precompile = Precompile {
     address: H160([
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x01,
     ]),
     name: "ECREC",
-    active_since_fork: Paris,
+    active_since_fork: Frontier,
 };
 
 pub const SHA2_256: Precompile = Precompile {
@@ -107,7 +108,7 @@ pub const SHA2_256: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x02,
     ]),
     name: "SHA256",
-    active_since_fork: Paris,
+    active_since_fork: Frontier,
 };
 
 pub const RIPEMD_160: Precompile = Precompile {
@@ -116,7 +117,7 @@ pub const RIPEMD_160: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x03,
     ]),
     name: "RIPEMD160",
-    active_since_fork: Paris,
+    active_since_fork: Frontier,
 };
 
 pub const IDENTITY: Precompile = Precompile {
@@ -125,16 +126,17 @@ pub const IDENTITY: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x04,
     ]),
     name: "ID",
-    active_since_fork: Paris,
+    active_since_fork: Frontier,
 };
 
+// Precompiles added in Byzantium (EIP-196, EIP-197, EIP-198)
 pub const MODEXP: Precompile = Precompile {
     address: H160([
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x05,
     ]),
     name: "MODEXP",
-    active_since_fork: Paris,
+    active_since_fork: Byzantium,
 };
 
 pub const ECADD: Precompile = Precompile {
@@ -143,7 +145,7 @@ pub const ECADD: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x06,
     ]),
     name: "BN254_ADD",
-    active_since_fork: Paris,
+    active_since_fork: Byzantium,
 };
 
 pub const ECMUL: Precompile = Precompile {
@@ -152,7 +154,7 @@ pub const ECMUL: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x07,
     ]),
     name: "BN254_MUL",
-    active_since_fork: Paris,
+    active_since_fork: Byzantium,
 };
 
 pub const ECPAIRING: Precompile = Precompile {
@@ -161,16 +163,17 @@ pub const ECPAIRING: Precompile = Precompile {
         0x00, 0x00, 0x00, 0x00, 0x08,
     ]),
     name: "BN254_PAIRING",
-    active_since_fork: Paris,
+    active_since_fork: Byzantium,
 };
 
+// Precompile added in Istanbul (EIP-152)
 pub const BLAKE2F: Precompile = Precompile {
     address: H160([
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x09,
     ]),
     name: "BLAKE2F",
-    active_since_fork: Paris,
+    active_since_fork: Istanbul,
 };
 
 pub const POINT_EVALUATION: Precompile = Precompile {
