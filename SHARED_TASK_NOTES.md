@@ -3,103 +3,64 @@
 ## Goal
 Add support for Pre-Merge forks (Frontier through GrayGlacier) to the ethrex Ethereum client.
 
-## What Was Done (This Iteration)
-
-### 1. ChainConfig - Added Pre-Merge Fork Detection
-**File**: `crates/common/types/genesis.rs`
-
-- Added activation check methods for all pre-merge forks:
-  - `is_homestead_activated(block_number)`
-  - `is_dao_fork_activated(block_number)`
-  - `is_tangerine_activated(block_number)`
-  - `is_spurious_dragon_activated(block_number)`
-  - `is_byzantium_activated(block_number)`
-  - `is_constantinople_activated(block_number)`
-  - `is_petersburg_activated(block_number)`
-  - `is_muir_glacier_activated(block_number)`
-  - `is_berlin_activated(block_number)`
-  - `is_arrow_glacier_activated(block_number)`
-  - `is_gray_glacier_activated(block_number)`
-  - `is_paris_activated(block_number)`
-
-- Added new method `get_fork_for_block(block_number, block_timestamp)`:
-  - Determines the correct fork using both block number (pre-merge) and timestamp (post-merge)
-  - Returns the correct Fork enum value from Frontier through BPO5
-
-### 2. Precompile Historical Activation
-**File**: `crates/vm/levm/src/precompiles.rs`
-
-Updated precompile activation forks to match Ethereum mainnet history:
-- `ECRECOVER`, `SHA2_256`, `RIPEMD_160`, `IDENTITY`: Now activate at `Frontier` (was `Paris`)
-- `MODEXP`, `ECADD`, `ECMUL`, `ECPAIRING`: Now activate at `Byzantium` (was `Paris`)
-- `BLAKE2F`: Now activates at `Istanbul` (was `Paris`)
-
-### 3. EF Tests Fork Configurations
-**File**: `tooling/ef_tests/blockchain/fork.rs`
-
-Added chain configurations for all pre-merge forks:
-- `FRONTIER_CONFIG`
-- `HOMESTEAD_CONFIG`
-- `TANGERINE_CONFIG`
-- `SPURIOUS_DRAGON_CONFIG`
-- `BYZANTIUM_CONFIG`
-- `CONSTANTINOPLE_CONFIG`
-- `ISTANBUL_CONFIG`
-- `BERLIN_CONFIG`
-- `LONDON_CONFIG`
-
-Updated `Fork::chain_config()` to return appropriate configs for pre-merge forks instead of panicking.
+## Current Status
+Core infrastructure for pre-merge fork support is now complete. All fork detection code has been updated to use `get_fork_for_block()` which properly handles both:
+- Pre-merge forks (block number based): Frontier through GrayGlacier
+- Post-merge forks (timestamp based): Paris through BPO5
 
 ## What Still Needs to Be Done
 
 ### High Priority (Core Functionality)
 
-1. **Update EVM to use `get_fork_for_block`**
-   - `crates/vm/levm/src/environment.rs`: `EVMConfig::new_from_chain_config()` currently uses `chain_config.fork(block_header.timestamp)` which only supports post-merge forks. Should use `get_fork_for_block(block_number, timestamp)`.
-
-2. **Update blockchain code to use new fork method**
-   - `crates/blockchain/blockchain.rs:2105`: `current_fork()` method uses timestamp only
-   - `crates/blockchain/payload.rs`: Fork detection in various places
-
-3. **Fork-specific gas costs for pre-merge**
-   - `crates/vm/levm/src/gas_cost.rs`: Some gas costs changed in pre-merge forks (e.g., EXP opcode cost changed in Spurious Dragon, SLOAD changed in Berlin)
+1. **Fork-specific gas costs for pre-merge**
+   - `crates/vm/levm/src/gas_cost.rs`: Some gas costs changed in pre-merge forks:
+     - EXP opcode cost changed in Spurious Dragon
+     - SLOAD changed in Berlin (access list)
+     - CALL/BALANCE etc. changed with Berlin access lists
    - Need to add fork checks for historical gas costs
 
-4. **Fork-specific opcodes**
+2. **Fork-specific opcodes availability**
    - Some opcodes were introduced in pre-merge forks:
      - `DELEGATECALL`: Homestead
      - `STATICCALL`, `RETURNDATASIZE`, `RETURNDATACOPY`: Byzantium
      - `CREATE2`, `EXTCODEHASH`, `SHL`, `SHR`, `SAR`: Constantinople
      - Access list opcodes (warm/cold): Berlin
-   - Need to validate opcode availability based on fork
+   - Need to validate opcode availability based on fork (return invalid opcode error for forks that don't support them)
 
 ### Medium Priority (Testing & Validation)
 
-5. **Run EF tests for pre-merge forks**
-   - The configs are added but tests need to be run to validate behavior
-   - Command: `cargo test --manifest-path tooling/ef_tests/state/Cargo.toml`
+3. **Run EF tests for pre-merge forks**
+   - Download vectors: `cd tooling/ef_tests/blockchain && make download-test-vectors`
+   - Run tests: `make test-levm`
+   - The fork configs are added but tests need to be run to validate behavior
 
-6. **Add pre-merge fork support to state tests**
-   - `tooling/ef_tests/state/` may need similar config updates
+4. **Add pre-merge fork support to state tests**
+   - `tooling/ef_tests/state/` may need similar config updates if not already done
 
 ### Low Priority (Polish)
 
-7. **Update `display_config()` in ChainConfig**
+5. **Update `display_config()` in ChainConfig**
    - Currently only shows post-merge forks; could show pre-merge activation blocks too
 
-8. **Add integration tests for pre-merge networks**
-   - Test genesis file parsing for historical mainnet blocks
-
 ## Key Files Modified
-- `crates/common/types/genesis.rs` - Core fork detection
-- `crates/vm/levm/src/precompiles.rs` - Precompile activation
-- `tooling/ef_tests/blockchain/fork.rs` - Test configurations
+- `crates/common/types/genesis.rs` - Core fork detection (get_fork_for_block)
+- `crates/vm/levm/src/environment.rs` - EVMConfig now uses get_fork_for_block
+- `crates/vm/levm/src/precompiles.rs` - Precompile activation (Frontier, Byzantium, Istanbul)
+- `crates/blockchain/blockchain.rs` - current_fork() uses get_fork_for_block
+- `crates/blockchain/payload.rs` - create_payload uses get_fork_for_block
+- `crates/vm/backends/mod.rs` - apply_system_calls uses get_fork_for_block
+- `crates/vm/backends/levm/mod.rs` - prepare_block and extract_all_requests_levm
+- `crates/networking/rpc/eth/transaction.rs` - estimate gas uses get_fork_for_block
+- `crates/common/types/block.rs` - validate_excess_blob_gas uses get_fork_for_block
+- `tooling/ef_tests/blockchain/fork.rs` - Test configurations for all forks
 
 ## Testing Commands
 ```bash
 # Check compilation
-cargo check --package ethrex-common --package ethrex-levm
+cargo check --package ethrex-common --package ethrex-levm --package ethrex-blockchain --package ethrex-vm --package ethrex-rpc
 
-# Run EF state tests (if available)
-cargo test --manifest-path tooling/ef_tests/state/Cargo.toml
+# Download EF test vectors and run tests
+cd tooling/ef_tests/blockchain
+make download-test-vectors
+make test-levm
 ```

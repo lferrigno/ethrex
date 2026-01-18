@@ -2094,7 +2094,7 @@ impl Blockchain {
         new_evm(&self.options.r#type, vm_db)
     }
 
-    /// Get the current fork of the chain, based on the latest block's timestamp
+    /// Get the current fork of the chain, based on the latest block's number and timestamp
     pub async fn current_fork(&self) -> Result<Fork, StoreError> {
         let chain_config = self.storage.get_chain_config();
         let latest_block_number = self.storage.get_latest_block_number().await?;
@@ -2102,7 +2102,7 @@ impl Blockchain {
             .storage
             .get_block_header(latest_block_number)?
             .ok_or(StoreError::Custom("Latest block not in DB".to_string()))?;
-        Ok(chain_config.fork(latest_block.timestamp))
+        Ok(chain_config.get_fork_for_block(latest_block.number, latest_block.timestamp))
     }
 }
 
