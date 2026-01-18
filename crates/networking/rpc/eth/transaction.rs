@@ -446,7 +446,7 @@ impl RpcHandler for EstimateGasRequest {
             _ => return Ok(Value::Null),
         };
 
-        let current_fork = chain_config.fork(block_header.timestamp);
+        let current_fork = chain_config.get_fork_for_block(block_header.number, block_header.timestamp);
 
         let transaction = match self.transaction.nonce {
             Some(_nonce) => self.transaction.clone(),

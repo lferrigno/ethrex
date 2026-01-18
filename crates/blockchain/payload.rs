@@ -128,7 +128,8 @@ pub fn create_payload(
         .get_block_header_by_hash(args.parent)?
         .ok_or_else(|| ChainError::ParentNotFound)?;
     let chain_config = storage.get_chain_config();
-    let fork = chain_config.fork(args.timestamp);
+    let new_block_number = parent_block.number.saturating_add(1);
+    let fork = chain_config.get_fork_for_block(new_block_number, args.timestamp);
     let gas_limit = calc_gas_limit(parent_block.gas_limit, args.gas_ceil);
     let excess_blob_gas = chain_config
         .get_fork_blob_schedule(args.timestamp)
@@ -143,7 +144,7 @@ pub fn create_payload(
         receipts_root: compute_receipts_root(&[]),
         logs_bloom: Bloom::default(),
         difficulty: U256::zero(),
-        number: parent_block.number.saturating_add(1),
+        number: new_block_number,
         gas_limit,
         gas_used: 0,
         timestamp: args.timestamp,

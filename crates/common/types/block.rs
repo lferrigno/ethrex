@@ -783,7 +783,7 @@ fn validate_excess_blob_gas(
     let expected_excess_blob_gas = chain_config
         .get_fork_blob_schedule(header.timestamp)
         .map(|schedule| {
-            calc_excess_blob_gas(parent_header, schedule, chain_config.fork(header.timestamp))
+            calc_excess_blob_gas(parent_header, schedule, chain_config.get_fork_for_block(header.number, header.timestamp))
         })
         .unwrap_or_default();
     if header
